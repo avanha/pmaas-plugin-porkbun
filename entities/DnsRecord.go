@@ -3,7 +3,7 @@ package entities
 import (
 	"reflect"
 
-	"pmaas.io/plugins/porkbun/data"
+	"github.com/avanha/pmaas-plugin-porkbun/data"
 )
 
 type DnsRecord interface {

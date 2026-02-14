@@ -1,6 +1,6 @@
 package common
 
-import "pmaas.io/plugins/porkbun/data"
+import "github.com/avanha/pmaas-plugin-porkbun/data"
 
 type DnsRecordResult struct {
 	Error       error

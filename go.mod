@@ -1,11 +1,7 @@
-module pmaas.io/plugins/porkbun
+module github.com/avanha/pmaas-plugin-porkbun
 
 go 1.25.5
 
-require pmaas.io/common v0.0.0
+require github.com/avanha/pmaas-common v0.0.0
 
-require pmaas.io/spi v0.0.0
-
-replace pmaas.io/common => ../../pmaas-common
-
-replace pmaas.io/spi => ../../pmaas-spi
+require github.com/avanha/pmaas-spi v0.0.0

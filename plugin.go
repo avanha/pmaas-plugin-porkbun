@@ -6,15 +6,15 @@ import (
 	"sync"
 	"time"
 
-	"pmaas.io/common/queue"
-	"pmaas.io/plugins/porkbun/config"
-	"pmaas.io/plugins/porkbun/data"
-	"pmaas.io/plugins/porkbun/entities"
-	"pmaas.io/plugins/porkbun/internal/common"
-	"pmaas.io/plugins/porkbun/internal/dnsRecord"
-	"pmaas.io/plugins/porkbun/internal/http"
-	"pmaas.io/plugins/porkbun/internal/worker"
-	"pmaas.io/spi"
+	"github.com/avanha/pmaas-common/queue"
+	"github.com/avanha/pmaas-plugin-porkbun/config"
+	"github.com/avanha/pmaas-plugin-porkbun/data"
+	"github.com/avanha/pmaas-plugin-porkbun/entities"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/dnsRecord"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/http"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/worker"
+	"github.com/avanha/pmaas-spi"
 )
 
 type plugin struct {

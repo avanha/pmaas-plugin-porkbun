@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"pmaas.io/plugins/porkbun/data"
-	"pmaas.io/plugins/porkbun/entities"
-	"pmaas.io/plugins/porkbun/events"
-	"pmaas.io/plugins/porkbun/internal/common"
-	"pmaas.io/spi"
+	"github.com/avanha/pmaas-plugin-porkbun/data"
+	"github.com/avanha/pmaas-plugin-porkbun/entities"
+	"github.com/avanha/pmaas-plugin-porkbun/events"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
+	"github.com/avanha/pmaas-spi"
 )
 
 type DnsRecord struct {

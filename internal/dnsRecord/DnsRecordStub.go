@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"pmaas.io/plugins/porkbun/data"
-	"pmaas.io/plugins/porkbun/entities"
-	"pmaas.io/plugins/porkbun/internal/common"
+	"github.com/avanha/pmaas-plugin-porkbun/data"
+	"github.com/avanha/pmaas-plugin-porkbun/entities"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
 )
 
 type DnsRecordStub struct {

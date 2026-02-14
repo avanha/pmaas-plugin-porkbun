@@ -1,8 +1,8 @@
 package events
 
 import (
-	"pmaas.io/plugins/porkbun/entities"
-	"pmaas.io/spi/events"
+	"github.com/avanha/pmaas-plugin-porkbun/entities"
+	"github.com/avanha/pmaas-spi/events"
 )
 
 type DnsRecordEntityStubAvailableEvent struct {

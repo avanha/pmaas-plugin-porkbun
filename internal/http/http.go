@@ -9,9 +9,9 @@ import (
 	"reflect"
 	"sort"
 
-	"pmaas.io/plugins/porkbun/data"
-	"pmaas.io/plugins/porkbun/internal/common"
-	"pmaas.io/spi"
+	"github.com/avanha/pmaas-plugin-porkbun/data"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
+	"github.com/avanha/pmaas-spi"
 )
 
 //go:embed content/static content/templates

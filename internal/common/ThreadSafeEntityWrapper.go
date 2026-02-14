@@ -1,7 +1,8 @@
 package common
 
-import "pmaas.io/spi"
+import "github.com/avanha/pmaas-spi"
 
+// TODO: Use the wrapper from spi/common
 type ThreadSafeEntityWrapper[T any] struct {
 	Container spi.IPMAASContainer
 	Entity    T

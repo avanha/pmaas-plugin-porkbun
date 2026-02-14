@@ -1,8 +1,8 @@
 package porkbun
 
 import (
-	"pmaas.io/plugins/porkbun/internal/common"
-	"pmaas.io/spi"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
+	"github.com/avanha/pmaas-spi"
 )
 
 type entityStoreAdapter struct {

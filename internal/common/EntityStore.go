@@ -1,7 +1,7 @@
 package common
 
 import (
-	"pmaas.io/plugins/porkbun/data"
+	"github.com/avanha/pmaas-plugin-porkbun/data"
 )
 
 type StatusAndEntities struct {

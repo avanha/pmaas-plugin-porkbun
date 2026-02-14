@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"slices"
 
-	"pmaas.io/plugins/porkbun/entities"
-	"pmaas.io/plugins/porkbun/events"
+	"github.com/avanha/pmaas-plugin-porkbun/entities"
+	"github.com/avanha/pmaas-plugin-porkbun/events"
 )
 
 type Domain struct {
