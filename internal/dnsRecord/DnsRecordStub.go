@@ -6,16 +6,16 @@ import (
 
 	"github.com/avanha/pmaas-plugin-porkbun/data"
 	"github.com/avanha/pmaas-plugin-porkbun/entities"
-	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
+	spicommon "github.com/avanha/pmaas-spi/common"
 )
 
 type DnsRecordStub struct {
 	pmaasEntityId          string
 	closeFn                func() error
-	entityWrapperReference atomic.Pointer[common.ThreadSafeEntityWrapper[entities.DnsRecord]]
+	entityWrapperReference atomic.Pointer[spicommon.ThreadSafeEntityWrapper[entities.DnsRecord]]
 }
 
-func NewDnsRecordStub(pmaasEntityId string, entityWrapper *common.ThreadSafeEntityWrapper[entities.DnsRecord]) *DnsRecordStub {
+func NewDnsRecordStub(pmaasEntityId string, entityWrapper *spicommon.ThreadSafeEntityWrapper[entities.DnsRecord]) *DnsRecordStub {
 	stub := &DnsRecordStub{
 		pmaasEntityId: pmaasEntityId,
 	}
@@ -35,19 +35,19 @@ func NewDnsRecordStub(pmaasEntityId string, entityWrapper *common.ThreadSafeEnti
 }
 
 func (s *DnsRecordStub) Data() data.DnsRecordData {
-	return common.ThreadSafeEntityWrapperExecValueFunc(
+	return spicommon.ThreadSafeEntityWrapperExecValueFunc(
 		s.entityWrapperReference.Load(),
 		func(target entities.DnsRecord) data.DnsRecordData { return target.Data() })
 }
 
 func (s *DnsRecordStub) Name() string {
-	return common.ThreadSafeEntityWrapperExecValueFunc(
+	return spicommon.ThreadSafeEntityWrapperExecValueFunc(
 		s.entityWrapperReference.Load(),
 		func(target entities.DnsRecord) string { return target.Name() })
 }
 
 func (s *DnsRecordStub) UpdateValue(value string) error {
-	return common.ThreadSafeEntityWrapperExecValueFunc(
+	return spicommon.ThreadSafeEntityWrapperExecValueFunc(
 		s.entityWrapperReference.Load(),
 		func(target entities.DnsRecord) error { return target.UpdateValue(value) })
 }

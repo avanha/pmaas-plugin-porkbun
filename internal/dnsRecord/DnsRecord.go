@@ -9,6 +9,7 @@ import (
 	"github.com/avanha/pmaas-plugin-porkbun/events"
 	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
 	"github.com/avanha/pmaas-spi"
+	spicommon "github.com/avanha/pmaas-spi/common"
 )
 
 type DnsRecord struct {
@@ -133,7 +134,7 @@ func (r *DnsRecord) GetStub(container spi.IPMAASContainer) entities.DnsRecord {
 	if r.stub == nil {
 		r.stub = NewDnsRecordStub(
 			r.id,
-			&common.ThreadSafeEntityWrapper[entities.DnsRecord]{
+			&spicommon.ThreadSafeEntityWrapper[entities.DnsRecord]{
 				Container: container,
 				Entity:    r,
 			})
