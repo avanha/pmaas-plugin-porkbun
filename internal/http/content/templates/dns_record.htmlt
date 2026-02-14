@@ -1,0 +1,46 @@
+<div class="entity-dns-record">
+    <div class="name">{{.Name}} ({{.Type}})</div>
+    {{if eq .Value ""}}
+        <div class="record-value monospace unknown">Waiting for update</div>
+    {{else}}
+        <div class="record-value monospace">{{.Value}}</div>
+    {{end}}
+    {{if not .LastUpdateTime.IsZero}}
+    <div class="dns-record-attributes container">
+        <div class="dns-record-ttl container">
+            <div class="label">TTL</div>
+            <div class="value">{{.Ttl}}</div>
+        </div>
+        <div class="dns-record-priority container   ">
+            <div class="label">Priority</div>
+            <div class="value">{{.Priority}}</div>
+        </div>
+    </div>
+    {{end}}
+    <div class="last-update-time container">
+         <div class="label">Last Updated</div>
+         {{if .LastUpdateTime.IsZero}}
+            <div class="timestamp">Never</div>
+         {{else}}
+            <div class="timestamp">{{.LastUpdateTime.Format "2006-01-02 3:04:05 PM"}}</div>
+         {{end}}
+    </div>
+    <div class="last-modified-time container">
+         <div class="label">Last Modified</div>
+         {{if .LastModifiedTime.IsZero}}
+            <div class="timestamp">Never</div>
+         {{else}}
+            <div class="timestamp">{{.LastModifiedTime.Format "2006-01-02 3:04:05 PM"}}</div>
+         {{end}}
+    </div>
+    <div class="dns-record-stats-gets container">
+        <div class="label">Retrievals</div>
+        <div class="value">{{.GetSuccessCount}} / {{.GetErrorCount}}</div>
+        <div class="">Success / Failure</div>
+    </div>
+     <div class="dns-record-stats-updates container">
+        <div class="label">Updates</div>
+        <div class="value">{{.UpdateSuccessCount}} / {{.UpdateErrorCount}}</div>
+        <div class="">Success / Failure</div>
+    </div>
+</div>

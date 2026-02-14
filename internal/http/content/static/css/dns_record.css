@@ -1,0 +1,53 @@
+.entity-dns-record {
+    display: flex;
+    flex-flow: column;
+}
+
+.entity-dns-record .monospace {
+    font-size: 10pt;
+    font-family: "Roboto", "Menlo", "Consolas", monospace;
+}
+
+.entity-dns-record .label::after {
+    content: ":";
+}
+
+.entity-dns-record > * {
+    margin: 0 0 5px 0;
+}
+
+.entity-dns-record .container {
+    display: flex;
+    flex-flow: row nowrap;
+    margin: 0 0 5px 0;
+}
+
+.entity-dns-record .container > :not(:last-child) {
+    margin-right: 10px;
+}
+
+.entity-dns-record .container .container {
+    margin-bottom: 0;
+}
+
+.entity-dns-record .name {
+    font-size: 15pt;
+}
+
+.entity-dns-record .record-value {
+    color: darkblue;
+}
+
+.entity-dns-record .record-value.unknown {
+    color: grey;
+}
+.entity-dns-record > * .label {
+    white-space: nowrap;
+    margin-right: 10px;
+}
+
+.entity-dns-record > * .value {
+}
+
+.entity-dns-record > * .timestamp {
+}

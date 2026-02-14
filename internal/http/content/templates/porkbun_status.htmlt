@@ -1,0 +1,74 @@
+<div class="entity-porkbun-status">
+    <div class="container">
+        <div class="group-label">Totals</div>
+        <div class="container nowrap">
+            <div class="label">Success</div>
+            <div class="value">{{.TotalSuccessCount}}</div>
+        </div>
+        <div class="container nowrap">
+            <div class="label">Errors</div>
+            <div class="value">{{.TotalErrorCount}}</div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="group-label">Request Queue</div>
+        <div class="container nowrap">
+            <div class="label">Current Size</div>
+            <div class="value">{{.CurrentQueueSize}}</div>
+        </div>
+        <div class="container nowrap">
+            <div class="label">Peak Size</div>
+            <div class="value">{{.PeakQueueSize}}</div>
+        </div>
+        <div class="container nowrap">
+            <div class="label">Peak Time</div>
+            <div class="timestamp">{{.PeakQueueSizeTime.Format "2006-01-02 3:04:05 PM"}}</div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="group-label">Retry Queue</div>
+        <div class="container nowrap">
+            <div class="label">Current Size</div>
+            <div class="value">{{.CurrentRetryQueueSize}}</div>
+        </div>
+        <div class="container nowrap">
+            <div class="label">Peak Size</div>
+            <div class="value">{{.PeakRetryQueueSize}}</div>
+        </div>
+        {{if not .PeakRetryQueueSizeTime.IsZero}}
+            <div class="container nowrap">
+                <div class="label">Peak Time</div>
+                <div class="timestamp">{{.PeakRetryQueueSizeTime.Format "2006-01-02 3:04:05 PM"}}</div>
+            </div>
+        {{end}}
+    </div>
+    <div class="container">
+        <div class="group-label">Failed Attempts</div>
+        <div class="container nowrap">
+            <div class="label">Peak</div>
+            <div class="value">{{.PeakFailedAttempts}}</div>
+        </div>
+        {{if not .PeakFailedAttemptsTime.IsZero}}
+            <div class="container nowrap">
+                <div class="label">Peak Time</div>
+                <div class="timestamp">{{.PeakFailedAttemptsTime.Format "2006-01-02 3:04:05 PM"}}</div>
+            </div>
+        {{end}}
+    </div>
+    <div class="container">
+        <div class="group-label">Last Error</div>
+        <div class="container nowrap">
+            <div class="label">Time</div>
+            <div class="timestamp">
+                {{if .LastErrorTime.IsZero}}
+                    Never
+                {{else}}
+                    {{.LastErrorTime.Format "2006-01-02 3:04:05 PM"}}
+                {{end}}
+            </div>
+            {{if not .LastErrorTime.IsZero}}
+                <div class="value monospace">{{.LastErrorMessage}}</div>
+            {{end}}
+        </div>
+    </div>
+</div>

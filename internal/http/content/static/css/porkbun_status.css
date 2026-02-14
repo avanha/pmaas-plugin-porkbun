@@ -1,0 +1,42 @@
+.entity-porkbun-status {
+    display: flex;
+    flex-flow: column;
+}
+
+.entity-porkbun-status .monospace {
+    font-size: 10pt;
+    font-family: "Roboto", "Menlo", "Consolas", monospace;
+}
+
+.entity-porkbun-status .container {
+    display: flex;
+    flex-flow: row wrap;
+    margin: 0 0 5px 0;
+}
+
+.entity-porkbun-status .container > :not(:last-child) {
+    margin-right: 10px;
+}
+
+.entity-porkbun-status .container > * {
+    white-space: nowrap;
+}
+
+.entity-porkbun-status .container .container {
+    margin-bottom: 0;
+}
+
+.entity-porkbun-status .label::after {
+    content: ":";
+}
+
+.entity-porkbun-status .group-label {
+    font-weight: bold;
+}
+
+.entity-porkbun-status .group-label::after {
+    content: " - ";
+}
+
+
+
