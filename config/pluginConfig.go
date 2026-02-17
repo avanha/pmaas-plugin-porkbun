@@ -12,9 +12,3 @@ func (c *PluginConfig) AddDomain(name string) *Domain {
 
 	return domain
 }
-
-func NewPluginConfig() PluginConfig {
-	return PluginConfig{
-		Domains: make(map[string]*Domain),
-	}
-}

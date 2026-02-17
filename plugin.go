@@ -17,6 +17,12 @@ import (
 	"github.com/avanha/pmaas-spi"
 )
 
+func NewPluginConfig() config.PluginConfig {
+	return config.PluginConfig{
+		Domains: make(map[string]*config.Domain),
+	}
+}
+
 type plugin struct {
 	config               config.PluginConfig
 	container            spi.IPMAASContainer
