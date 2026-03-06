@@ -54,7 +54,7 @@ func (w *Worker) Run(ctx context.Context) {
 			}
 			break
 		case request := <-w.requestCh:
-			w.processRequest(request)
+			w.processRequest(&request)
 			break
 		}
 	}
@@ -81,7 +81,7 @@ func (w *Worker) cancelRequest(request *common.Request) {
 	}
 }
 
-func (w *Worker) processRequest(request common.Request) {
+func (w *Worker) processRequest(request *common.Request) {
 	fmt.Printf("%T Received request, type %d\n", w, request.RequestType)
 	switch request.RequestType {
 	case common.RequestTypeGetDnsRecord:
