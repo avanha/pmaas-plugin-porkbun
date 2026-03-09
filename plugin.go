@@ -143,7 +143,14 @@ func (p *plugin) processConfig() {
 
 func (p *plugin) registerEntities() {
 	for key, record := range p.dnsRecords {
-		pmassEntityId, err := p.container.RegisterEntity(record.Id(), entities.DnsRecordType, record.Name(), nil)
+		// This lambda captures the plugin instance and the hostInstance
+		// and passes it to the entity manager.  However, entities are deregistered on plugin
+		// stop, so this will not leak resources, and is OK,
+		var recordStubFactoryFn spi.EntityStubFactoryFunc = func() (any, error) {
+			return record.GetStub(), nil
+		}
+		pmassEntityId, err := p.container.RegisterEntity(
+			record.Id(), entities.DnsRecordType, record.Name(), recordStubFactoryFn)
 
 		if err != nil {
 			fmt.Printf("Error registering %s: %v\n", key, err)

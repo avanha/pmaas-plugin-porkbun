@@ -116,7 +116,7 @@ func (r *DnsRecord) processOnEntityStubAvailableListeners(container spi.IPMAASCo
 		return
 	}
 
-	event := events.DnsRecordEntityStubAvailableEvent{EntityStub: r.GetStub(container)}
+	event := events.DnsRecordEntityStubAvailableEvent{EntityStub: r.GetStub()}
 	invocations := make([]func(), numListeners)
 
 	for i, listener := range r.onEntityStubAvailableListeners {
@@ -130,12 +130,15 @@ func (r *DnsRecord) processOnEntityStubAvailableListeners(container spi.IPMAASCo
 	}
 }
 
-func (r *DnsRecord) GetStub(container spi.IPMAASContainer) entities.DnsRecord {
+// GetStub returns a proxy struct that implements the DnsRecord interface.  The function ensures
+// that only one stub is created for entity.  This function is not thread-safe but that is because
+// it's only called from the plugin goroutine, whether direcftly or via the PMAAS server.
+func (r *DnsRecord) GetStub() entities.DnsRecord {
 	if r.stub == nil {
 		r.stub = NewDnsRecordStub(
 			r.id,
 			&spicommon.ThreadSafeEntityWrapper[entities.DnsRecord]{
-				Container: container,
+				Container: r.container,
 				Entity:    r,
 			})
 	}
