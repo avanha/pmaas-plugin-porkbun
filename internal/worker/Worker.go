@@ -15,21 +15,24 @@ import (
 
 	"github.com/avanha/pmaas-plugin-porkbun/data"
 	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
+	spicommon "github.com/avanha/pmaas-spi/common"
 )
 
 type Worker struct {
 	ApiKey          string
 	ApiSecret       string
 	credentialsBody []byte
+	httpClient      spicommon.HttpClient
 	requestCh       chan common.Request
 	err             atomic.Value
 }
 
 func NewPorkBunWorker(apiKey string, apiSecret string, requestCh chan common.Request) *Worker {
 	return &Worker{
-		ApiKey:    apiKey,
-		ApiSecret: apiSecret,
-		requestCh: requestCh,
+		ApiKey:     apiKey,
+		ApiSecret:  apiSecret,
+		httpClient: &spicommon.DefaultHttpClient{},
+		requestCh:  requestCh,
 	}
 }
 
@@ -271,7 +274,7 @@ func (w *Worker) executeHttpPost(uri string, body any, result any) error {
 		return fmt.Errorf("error serializing request body: %w", err)
 	}
 
-	response, err := http.Post(uri, "application/json", bytes.NewReader(jsonBytes))
+	response, err := w.httpClient.Post(uri, "application/json", bytes.NewReader(jsonBytes))
 
 	if err != nil {
 		return fmt.Errorf("http post failed: %w", err)
