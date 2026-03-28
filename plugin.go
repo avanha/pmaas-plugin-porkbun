@@ -51,6 +51,10 @@ func NewPlugin(config config.PluginConfig) Plugin {
 	}
 }
 
+func (p *plugin) ShortName() string {
+	return "porkbun"
+}
+
 func (p *plugin) Init(container spi.IPMAASContainer) {
 	p.container = container
 	p.processConfig()
