@@ -207,7 +207,8 @@ func (w *Worker) getDnsRecord(domain string, recordType string, name string) (Re
 
 	if responseMessage.Status != "SUCCESS" {
 		return ResponseDnsRecordMessage{},
-			fmt.Errorf("retrieval unsuccessful: %w", err)
+			fmt.Errorf("retrieval unsuccessful, status: %s, message: %s",
+				responseMessage.Status, responseMessage.Message)
 	}
 
 	recordCount := len(responseMessage.Records)
@@ -258,6 +259,12 @@ func (w *Worker) updateDnsRecord(
 		return ResponseDnsRecordMessage{},
 			fmt.Errorf(
 				"error sending update DNS record request: %w", err)
+	}
+
+	if responseMessage.Status != "SUCCESS" {
+		return ResponseDnsRecordMessage{},
+			fmt.Errorf("update unsuccessful, status: %s, message: %s",
+				responseMessage.Status, responseMessage.Message)
 	}
 
 	// Copy the current record and update with changed values
