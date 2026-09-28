@@ -27,6 +27,33 @@ type Worker struct {
 	err             atomic.Value
 }
 
+// ErrInvalidCredentials indicates the Porkbun API rejected the configured API key/secret.
+// Porkbun always responds with HTTP 200 and a JSON body ({"status":"ERROR", ...}) for API-level
+// failures, so this is detected from the response message rather than the HTTP status code.
+// This is a permanent, non-retryable condition: retrying with the same credentials will never
+// succeed, unlike transient errors (network failures, rate limiting, 5xx-equivalents).
+var ErrInvalidCredentials = errors.New("porkbun: invalid API key/secret")
+
+// isInvalidCredentialsMessage checks a Porkbun error message for the known text it returns
+// when the configured API key or secret API key is invalid.
+func isInvalidCredentialsMessage(message string) bool {
+	lower := strings.ToLower(message)
+	return strings.Contains(lower, "invalid api key") || strings.Contains(lower, "invalid secret api key")
+}
+
+// wrapStatusError builds an error from a non-SUCCESS Porkbun API response, wrapping
+// ErrInvalidCredentials when the message indicates the API key/secret was rejected so callers
+// can distinguish this permanent failure from transient ones via errors.Is.
+func wrapStatusError(prefix string, status string, message string) error {
+	err := fmt.Errorf("%s, status: %s, message: %s", prefix, status, message)
+
+	if isInvalidCredentialsMessage(message) {
+		return fmt.Errorf("%w: %s", ErrInvalidCredentials, err)
+	}
+
+	return err
+}
+
 func NewPorkBunWorker(apiKey string, apiSecret string, requestCh chan common.Request) *Worker {
 	return &Worker{
 		ApiKey:     apiKey,
@@ -104,7 +131,7 @@ func (w *Worker) processGetDnsRecordRequest(
 	if err != nil {
 		completeDnsRecordRequestWithError(
 			resultCh,
-			fmt.Errorf("error to retrieving DNS record: %w", err),
+			fmt.Errorf("error retrieving DNS record: %w", err),
 			"DNS record retrieval failed")
 		return
 	}
@@ -206,9 +233,8 @@ func (w *Worker) getDnsRecord(domain string, recordType string, name string) (Re
 	fmt.Printf("%T Retrieved DNS record: %+v\n", w, responseMessage)
 
 	if responseMessage.Status != "SUCCESS" {
-		return ResponseDnsRecordMessage{},
-			fmt.Errorf("retrieval unsuccessful, status: %s, message: %s",
-				responseMessage.Status, responseMessage.Message)
+		return ResponseDnsRecordMessage{}, wrapStatusError(
+			"retrieval unsuccessful", responseMessage.Status, responseMessage.Message)
 	}
 
 	recordCount := len(responseMessage.Records)
@@ -262,9 +288,8 @@ func (w *Worker) updateDnsRecord(
 	}
 
 	if responseMessage.Status != "SUCCESS" {
-		return ResponseDnsRecordMessage{},
-			fmt.Errorf("update unsuccessful, status: %s, message: %s",
-				responseMessage.Status, responseMessage.Message)
+		return ResponseDnsRecordMessage{}, wrapStatusError(
+			"update unsuccessful", responseMessage.Status, responseMessage.Message)
 	}
 
 	// Copy the current record and update with changed values

@@ -2,6 +2,7 @@ package porkbun
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -89,8 +90,14 @@ func isFailedResult(result *common.DnsRecordResult) bool {
 	return result.Error != nil
 }
 
-func canRetryRequest(_ *common.Request, _ *common.DnsRecordResult,
+func canRetryRequest(_ *common.Request, response *common.DnsRecordResult,
 	attempts int, _ time.Time) bool {
+	// A rejected API key/secret is a permanent failure: retrying with the same credentials will
+	// never succeed, so surface it immediately instead of masking it behind the retry loop.
+	if response != nil && errors.Is(response.Error, worker.ErrInvalidCredentials) {
+		return false
+	}
+
 	return attempts < 11
 }
 
