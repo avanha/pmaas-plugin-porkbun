@@ -3,22 +3,22 @@
         <div class="group-label">Totals</div>
         <div class="container nowrap">
             <div class="label">Success</div>
-            <div class="value">{{.TotalSuccessCount}}</div>
+            <div class="value">{{.TotalSuccessCount | html}}</div>
         </div>
         <div class="container nowrap">
             <div class="label">Errors</div>
-            <div class="value">{{.TotalErrorCount}}</div>
+            <div class="value">{{.TotalErrorCount | html}}</div>
         </div>
     </div>
     <div class="container">
         <div class="group-label">Request Queue</div>
         <div class="container nowrap">
             <div class="label">Current Size</div>
-            <div class="value">{{.CurrentQueueSize}}</div>
+            <div class="value">{{.CurrentQueueSize | html}}</div>
         </div>
         <div class="container nowrap">
             <div class="label">Peak Size</div>
-            <div class="value">{{.PeakQueueSize}}</div>
+            <div class="value">{{.PeakQueueSize | html}}</div>
         </div>
         <div class="container nowrap">
             <div class="label">Peak Time</div>
@@ -29,11 +29,11 @@
         <div class="group-label">Retry Queue</div>
         <div class="container nowrap">
             <div class="label">Current Size</div>
-            <div class="value">{{.CurrentRetryQueueSize}}</div>
+            <div class="value">{{.CurrentRetryQueueSize | html}}</div>
         </div>
         <div class="container nowrap">
             <div class="label">Peak Size</div>
-            <div class="value">{{.PeakRetryQueueSize}}</div>
+            <div class="value">{{.PeakRetryQueueSize | html}}</div>
         </div>
         {{if not .PeakRetryQueueSizeTime.IsZero}}
             <div class="container nowrap">
@@ -67,7 +67,7 @@
                 {{end}}
             </div>
             {{if not .LastErrorTime.IsZero}}
-                <div class="value monospace">{{.LastErrorMessage}}</div>
+                <div class="value monospace">{{.LastErrorMessage | html}}</div>
             {{end}}
         </div>
     </div>

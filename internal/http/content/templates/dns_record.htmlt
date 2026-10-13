@@ -1,9 +1,9 @@
 <div class="entity-dns-record">
-    <div class="name">{{.Name}} ({{.Type}})</div>
+    <div class="name">{{.Name | html}} ({{.Type | html}})</div>
     {{if eq .Value ""}}
         <div class="record-value monospace unknown">Waiting for update</div>
     {{else}}
-        <div class="record-value monospace">{{.Value}}</div>
+        <div class="record-value monospace">{{.Value | html}}</div>
     {{end}}
     {{if not .LastUpdateTime.IsZero}}
     <div class="dns-record-attributes container">
@@ -35,12 +35,12 @@
     </div>
     <div class="dns-record-stats-gets container">
         <div class="label">Retrievals</div>
-        <div class="value">{{.GetSuccessCount}} / {{.GetErrorCount}}</div>
+        <div class="value">{{.GetSuccessCount | html}} / {{.GetErrorCount | html}}</div>
         <div class="">Success / Failure</div>
     </div>
      <div class="dns-record-stats-updates container">
         <div class="label">Updates</div>
-        <div class="value">{{.UpdateSuccessCount}} / {{.UpdateErrorCount}}</div>
+        <div class="value">{{.UpdateSuccessCount | html}} / {{.UpdateErrorCount | html}}</div>
         <div class="">Success / Failure</div>
     </div>
 </div>
