@@ -146,7 +146,7 @@ func (p *plugin) processConfig() {
 				configuredDnsRecord.Type,
 				configuredDnsRecord.Name,
 				p.enqueueRequest,
-				configuredDnsRecord.OnEntityStubAvailableListeners())
+				configuredDnsRecord.StubHolder())
 			p.dnsRecords[key] = dnsRecordInstance
 		}
 	}

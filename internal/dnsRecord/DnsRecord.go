@@ -10,17 +10,18 @@ import (
 	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
 	"github.com/avanha/pmaas-spi"
 	spicommon "github.com/avanha/pmaas-spi/common"
+	spievents "github.com/avanha/pmaas-spi/events"
 )
 
 type DnsRecord struct {
-	container                      spi.IPMAASContainer
-	id                             string
-	pmaasEntityId                  string
-	domain                         string
-	currentData                    data.DnsRecordData
-	onEntityStubAvailableListeners []func(event events.DnsRecordEntityStubAvailableEvent)
-	stub                           *DnsRecordStub
-	requestHandlerFn               func(request common.Request) error
+	container        spi.IPMAASContainer
+	id               string
+	pmaasEntityId    string
+	domain           string
+	currentData      data.DnsRecordData
+	stubHolder       *spicommon.StubHolder[entities.DnsRecord]
+	stub             *DnsRecordStub
+	requestHandlerFn func(request common.Request) error
 }
 
 func NewDnsRecord(
@@ -30,7 +31,7 @@ func NewDnsRecord(
 	recordType string,
 	name string,
 	requestHandlerFn func(request common.Request) error,
-	onEntityStubAvailableListeners []func(event events.DnsRecordEntityStubAvailableEvent)) *DnsRecord {
+	stubHolder *spicommon.StubHolder[entities.DnsRecord]) *DnsRecord {
 	return &DnsRecord{
 		container: container,
 		id:        id,
@@ -39,8 +40,8 @@ func NewDnsRecord(
 			Name: name,
 			Type: recordType,
 		},
-		requestHandlerFn:               requestHandlerFn,
-		onEntityStubAvailableListeners: onEntityStubAvailableListeners,
+		requestHandlerFn: requestHandlerFn,
+		stubHolder:       stubHolder,
 	}
 }
 
@@ -106,27 +107,16 @@ func (r *DnsRecord) SetPmaasEntityId(id string) {
 	r.pmaasEntityId = id
 }
 
+// ProcessConfiguredListeners hands the record's stub to the assembly: through the holder it shares with the
+// assembly's config, which keeps it, and calls the listeners the assembly added. Call once the entity is registered.
 func (r *DnsRecord) ProcessConfiguredListeners(container spi.IPMAASContainer) {
-	r.processOnEntityStubAvailableListeners(container)
-}
-
-func (r *DnsRecord) processOnEntityStubAvailableListeners(container spi.IPMAASContainer) {
-	numListeners := len(r.onEntityStubAvailableListeners)
-	if numListeners == 0 {
-		return
+	event := events.DnsRecordEntityStubAvailableEvent{
+		EntityEvent: spievents.EntityEvent{Id: r.pmaasEntityId, EntityType: entities.DnsRecordType, Name: r.currentData.Name},
+		EntityStub:  r.GetStub(),
 	}
 
-	event := events.DnsRecordEntityStubAvailableEvent{EntityStub: r.GetStub()}
-	invocations := make([]func(), numListeners)
-
-	for i, listener := range r.onEntityStubAvailableListeners {
-		invocations[i] = func() { listener(event) }
-	}
-
-	err := container.EnqueueOnServerGoRoutine(invocations)
-
-	if err != nil {
-		fmt.Printf("error enqueuing DnsRecordEntityStubAvailableEvent listener invocations: %v\n", err)
+	if err := r.stubHolder.Provide(container, event); err != nil {
+		fmt.Printf("error providing the stub of DNS record %s: %v\n", r.currentData.Name, err)
 	}
 }
 
@@ -151,6 +141,9 @@ func (r *DnsRecord) PmaasEntityId() string {
 }
 
 func (r *DnsRecord) CloseStubIfPresent() {
+	// Before closing it, so that nobody is handed a stub that's no use.
+	r.stubHolder.Withdraw()
+
 	if r.stub != nil {
 		r.stub.Close()
 		r.stub = nil
