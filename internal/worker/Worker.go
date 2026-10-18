@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ import (
 )
 
 type Worker struct {
+	log             *slog.Logger
 	ApiKey          string
 	ApiSecret       string
 	credentialsBody []byte
@@ -54,8 +56,9 @@ func wrapStatusError(prefix string, status string, message string) error {
 	return err
 }
 
-func NewPorkBunWorker(apiKey string, apiSecret string, requestCh chan common.Request) *Worker {
+func NewPorkBunWorker(log *slog.Logger, apiKey string, apiSecret string, requestCh chan common.Request) *Worker {
 	return &Worker{
+		log:        log,
 		ApiKey:     apiKey,
 		ApiSecret:  apiSecret,
 		httpClient: &spicommon.DefaultHttpClient{},
@@ -72,7 +75,7 @@ func (w *Worker) Run(ctx context.Context) {
 	if err == nil {
 		w.credentialsBody = credentialsBodyBytes
 	} else {
-		fmt.Printf("Unable to serialize credentials: %s\n", err)
+		w.log.Error("unable to serialize credentials", "error", err)
 	}
 
 	for run := true; run; {
@@ -112,7 +115,7 @@ func (w *Worker) cancelRequest(request *common.Request) {
 }
 
 func (w *Worker) processRequest(request *common.Request) {
-	fmt.Printf("%T Received request, type %d\n", w, request.RequestType)
+	w.log.Debug("received request, type", "requestType", request.RequestType)
 	switch request.RequestType {
 	case common.RequestTypeGetDnsRecord:
 		w.processGetDnsRecordRequest(&request.GetDnsRecordRequest, request.ResultCh)
@@ -130,6 +133,7 @@ func (w *Worker) processGetDnsRecordRequest(
 
 	if err != nil {
 		completeDnsRecordRequestWithError(
+			w.log,
 			resultCh,
 			fmt.Errorf("error retrieving DNS record: %w", err),
 			"DNS record retrieval failed")
@@ -139,6 +143,7 @@ func (w *Worker) processGetDnsRecordRequest(
 	now := time.Now()
 
 	completeDnsRecordRequestWithSuccess(
+		w.log,
 		resultCh,
 		&currentRecord,
 		&now,
@@ -158,6 +163,7 @@ func (w *Worker) processUpdateDnsRecordRequest(
 
 		if err != nil {
 			completeDnsRecordRequestWithError(
+				w.log,
 				resultCh,
 				fmt.Errorf("error retrieving DNS record: %w", err),
 				"DNS record update failed")
@@ -184,6 +190,7 @@ func (w *Worker) processUpdateDnsRecordRequest(
 
 	if currentRecord.Content == request.NewValue {
 		completeDnsRecordRequestWithSuccess(
+			w.log,
 			resultCh,
 			&currentRecord,
 			&updateTime,
@@ -198,6 +205,7 @@ func (w *Worker) processUpdateDnsRecordRequest(
 
 	if err != nil {
 		completeDnsRecordRequestWithError(
+			w.log,
 			resultCh,
 			fmt.Errorf("error updating DNS record: %w", err),
 			"DNS record update failed")
@@ -206,6 +214,7 @@ func (w *Worker) processUpdateDnsRecordRequest(
 
 	now := time.Now()
 	completeDnsRecordRequestWithSuccess(
+		w.log,
 		resultCh,
 		&currentRecord,
 		&updateTime,
@@ -230,7 +239,7 @@ func (w *Worker) getDnsRecord(domain string, recordType string, name string) (Re
 				domain, recordType, name, err)
 	}
 
-	fmt.Printf("%T Retrieved DNS record: %+v\n", w, responseMessage)
+	w.log.Debug("retrieved DNS record", "responseMessage", responseMessage)
 
 	if responseMessage.Status != "SUCCESS" {
 		return ResponseDnsRecordMessage{}, wrapStatusError(
@@ -243,8 +252,7 @@ func (w *Worker) getDnsRecord(domain string, recordType string, name string) (Re
 			fmt.Errorf("no DNS records found for %s %s %s",
 				domain, recordType, name)
 	} else if recordCount > 1 {
-		fmt.Printf("%T Warning: multiple DNS records found for %s %s %s, using first one\n",
-			w, domain, recordType, name)
+		w.log.Warn("multiple DNS records found, using first one", "domain", domain, "recordType", recordType, "name", name)
 	}
 
 	currentRecord := responseMessage.Records[0]
@@ -311,7 +319,7 @@ func (w *Worker) executeHttpPost(uri string, body any, result any) error {
 	if err != nil {
 		return fmt.Errorf("http post failed: %w", err)
 	}
-	defer func() { closeResponse(response) }()
+	defer func() { closeResponse(w.log, response) }()
 
 	responseBytes, err := io.ReadAll(response.Body)
 
@@ -328,27 +336,27 @@ func (w *Worker) executeHttpPost(uri string, body any, result any) error {
 	return nil
 }
 
-func closeResponse(response *http.Response) {
+func closeResponse(log *slog.Logger, response *http.Response) {
 	if response != nil {
 		closeErr := response.Body.Close()
 
 		if closeErr != nil {
-			fmt.Printf("Error closing response body: %s\n", closeErr)
+			log.Error("error closing response body", "error", closeErr)
 		}
 	}
 }
 
-func buildDnsRecordData(record *ResponseDnsRecordMessage, lastUpdateTime *time.Time) data.DnsRecordData {
+func buildDnsRecordData(log *slog.Logger, record *ResponseDnsRecordMessage, lastUpdateTime *time.Time) data.DnsRecordData {
 	ttlInt, err := strconv.Atoi(record.Ttl)
 
 	if err != nil {
-		fmt.Printf("Error parsing TTL from \"%s\": %s\n", record.Ttl, err)
+		log.Warn("error parsing TTL", "ttl", record.Ttl, "error", err)
 	}
 
 	priorityInt, err := strconv.Atoi(record.Prio)
 
 	if err != nil {
-		fmt.Printf("Error parsing priority from \"%s\": %s\n", record.Ttl, err)
+		log.Warn("error parsing priority", "priority", record.Prio, "error", err)
 	}
 
 	return data.DnsRecordData{
@@ -364,6 +372,7 @@ func buildDnsRecordData(record *ResponseDnsRecordMessage, lastUpdateTime *time.T
 }
 
 func completeDnsRecordRequestWithSuccess(
+	log *slog.Logger,
 	resultCh chan common.DnsRecordResult,
 	record *ResponseDnsRecordMessage,
 	lastUpdateTime *time.Time,
@@ -371,9 +380,9 @@ func completeDnsRecordRequestWithSuccess(
 	message string,
 	logMessage string) {
 	if resultCh == nil {
-		fmt.Printf("%s: %s\n", logMessage, message)
+		log.Info(logMessage, "message", message)
 	} else {
-		recordData := buildDnsRecordData(record, lastUpdateTime)
+		recordData := buildDnsRecordData(log, record, lastUpdateTime)
 
 		if lastModifiedTime != nil {
 			recordData.LastModifiedTime = *lastModifiedTime
@@ -387,9 +396,9 @@ func completeDnsRecordRequestWithSuccess(
 	}
 }
 
-func completeDnsRecordRequestWithError(resultCh chan common.DnsRecordResult, err error, logMessage string) {
+func completeDnsRecordRequestWithError(log *slog.Logger, resultCh chan common.DnsRecordResult, err error, logMessage string) {
 	if resultCh == nil {
-		fmt.Printf("%s: %s\n", logMessage, err)
+		log.Error(logMessage, "error", err)
 	} else {
 		resultCh <- common.DnsRecordResult{
 			Error: err,

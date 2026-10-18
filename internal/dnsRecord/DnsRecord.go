@@ -2,6 +2,8 @@ package dnsRecord
 
 import (
 	"fmt"
+	"github.com/avanha/pmaas-spi/logging"
+	"log/slog"
 	"time"
 
 	"github.com/avanha/pmaas-plugin-porkbun/data"
@@ -14,6 +16,7 @@ import (
 )
 
 type DnsRecord struct {
+	log              *slog.Logger
 	container        spi.IPMAASContainer
 	id               string
 	pmaasEntityId    string
@@ -33,6 +36,7 @@ func NewDnsRecord(
 	requestHandlerFn func(request common.Request) error,
 	stubHolder *spicommon.StubHolder[entities.DnsRecord]) *DnsRecord {
 	return &DnsRecord{
+		log:       logging.For(container, "dnsrecord"),
 		container: container,
 		id:        id,
 		domain:    domain,
@@ -58,7 +62,7 @@ func (r *DnsRecord) Data() data.DnsRecordData {
 }
 
 func (r *DnsRecord) UpdateValue(value string) error {
-	fmt.Printf("Received request to update DNS record %s to value %s\n", r.currentData.Name, value)
+	r.log.Debug("received request to update DNS record to value", "name", r.currentData.Name, "value", value)
 	resultCh := make(chan common.DnsRecordResult)
 	request := common.Request{
 		RequestType: common.RequestTypeUpdateDnsRecord,
@@ -83,12 +87,12 @@ func (r *DnsRecord) UpdateValue(value string) error {
 
 func (r *DnsRecord) processUpdateValueResult(result common.DnsRecordResult) {
 	if result.Error == nil {
-		fmt.Printf("Updated DNS record %s successfully: %s\n", r.currentData.Name, result.Message)
+		r.log.Debug("updated DNS record successfully", "name", r.currentData.Name, "message", result.Message)
 		r.updateData(&result.CurrentData)
 		r.currentData.LastModifiedTime = result.CurrentData.LastModifiedTime
 		r.currentData.UpdateSuccessCount++
 	} else {
-		fmt.Printf("Error updating DNS record %s: %v\n", r.currentData.Name, result.Error)
+		r.log.Error("error updating DNS record", "name", r.currentData.Name, "error", result.Error)
 		r.currentData.LastError = result.Error
 		r.currentData.LastErrorTime = time.Now()
 		r.currentData.UpdateErrorCount++
@@ -116,7 +120,7 @@ func (r *DnsRecord) ProcessConfiguredListeners(container spi.IPMAASContainer) {
 	}
 
 	if err := r.stubHolder.Provide(container, event); err != nil {
-		fmt.Printf("error providing the stub of DNS record %s: %v\n", r.currentData.Name, err)
+		r.log.Error("error providing the stub of DNS record", "name", r.currentData.Name, "error", err)
 	}
 }
 
@@ -125,7 +129,7 @@ func (r *DnsRecord) ProcessConfiguredListeners(container spi.IPMAASContainer) {
 // it's only called from the plugin goroutine, whether direcftly or via the PMAAS server.
 func (r *DnsRecord) GetStub() entities.DnsRecord {
 	if r.stub == nil {
-		r.stub = NewDnsRecordStub(
+		r.stub = NewDnsRecordStub(r.log,
 			r.id,
 			&spicommon.ThreadSafeEntityWrapper[entities.DnsRecord]{
 				Container: r.container,
@@ -175,11 +179,11 @@ func (r *DnsRecord) Refresh() error {
 
 func (r *DnsRecord) processGetDnsRecordResult(result common.DnsRecordResult) {
 	if result.Error == nil {
-		fmt.Printf("%T DNS record %s: %s\n", r, result.CurrentData.Name, result.Message)
+		r.log.Debug("DNS record", "name", result.CurrentData.Name, "message", result.Message)
 		r.updateData(&result.CurrentData)
 		r.currentData.GetSuccessCount++
 	} else {
-		fmt.Printf("Error retrieving DNS record %s: %v\n", r.currentData.Name, result.Error)
+		r.log.Error("error retrieving DNS record", "name", r.currentData.Name, "error", result.Error)
 		r.currentData.LastError = result.Error
 		r.currentData.LastErrorTime = time.Now()
 		r.currentData.GetErrorCount++
@@ -201,6 +205,6 @@ func readAndProcessResult[T any](r *DnsRecord, resultCh <-chan T, processFn func
 	err := r.container.EnqueueOnPluginGoRoutine(func() { processFn(result) })
 
 	if err != nil {
-		fmt.Printf("%T Error processing %s result: %v\n", r, resultDescription, err)
+		r.log.Error("error processing result", "operation", resultDescription, "error", err)
 	}
 }

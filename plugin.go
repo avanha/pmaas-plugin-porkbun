@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/avanha/pmaas-spi/logging"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -25,6 +27,7 @@ func NewPluginConfig() config.PluginConfig {
 }
 
 type plugin struct {
+	log                  *slog.Logger
 	config               config.PluginConfig
 	container            spi.IPMAASContainer
 	entityCounter        int
@@ -58,6 +61,7 @@ func (p *plugin) ShortName() string {
 
 func (p *plugin) Init(container spi.IPMAASContainer) {
 	p.container = container
+	p.log = logging.For(container)
 	p.processConfig()
 	p.httpHandler.Init(container, &entityStoreAdapter{parent: p})
 	p.requestQueue = queue.NewRequestQueue(p.requestCh)
@@ -68,7 +72,7 @@ func (p *plugin) Init(container spi.IPMAASContainer) {
 		isFailedResult,
 		canRetryRequest,
 		p.requestQueue)
-	p.worker = worker.NewPorkBunWorker(p.config.ApiKey, p.config.ApiSecret, p.requestCh)
+	p.worker = worker.NewPorkBunWorker(logging.For(container, "worker"), p.config.ApiKey, p.config.ApiSecret, p.requestCh)
 }
 
 func getResultChannel(request *common.Request) chan common.DnsRecordResult {
@@ -113,14 +117,14 @@ func (p *plugin) Start() {
 }
 
 func (p *plugin) Stop() chan func() {
-	fmt.Printf("%T Stopping...\n", p)
+	p.log.Info("stopping")
 	p.running = false
 	p.requestRetryingQueue.Stop()
 	p.requestQueue.Stop()
 	p.cancelFn()
 	callbackCh := make(chan func())
 	go func() {
-		fmt.Printf("%T Waiting for workers to finish...\n", p)
+		p.log.Debug("waiting for workers to finish")
 		p.workersWg.Wait()
 		callbackCh <- func() { p.onWorkersStopped(callbackCh) }
 	}()
@@ -129,7 +133,7 @@ func (p *plugin) Stop() chan func() {
 }
 
 func (p *plugin) onWorkersStopped(callbackCh chan func()) {
-	fmt.Printf("%T Workers stopped, deregistering entities...\n", p)
+	p.log.Debug("workers stopped, deregistering entities")
 	p.deregisterEntities()
 	close(callbackCh)
 }
@@ -164,7 +168,7 @@ func (p *plugin) registerEntities() {
 			record.Id(), entities.DnsRecordType, record.Name(), recordStubFactoryFn)
 
 		if err != nil {
-			fmt.Printf("Error registering %s: %v\n", key, err)
+			p.log.Error("error registering", "key", key, "error", err)
 			continue
 		}
 
@@ -181,7 +185,7 @@ func (p *plugin) deregisterEntities() {
 			if err == nil {
 				record.ClearPmaasEntityId()
 			} else {
-				fmt.Printf("Error deregistering DnsRecord %s: %v\n", name, err)
+				p.log.Error("error deregistering DnsRecord", "name", name, "error", err)
 			}
 		}
 
@@ -226,12 +230,12 @@ func (p *plugin) enqueueRefresh() {
 		refreshError := p.refresh()
 
 		if refreshError != nil {
-			fmt.Printf("%T: Error enqueueing refresh: %v\n", p, refreshError)
+			p.log.Error("error enqueueing refresh", "error", refreshError)
 		}
 	})
 
 	if err != nil {
-		fmt.Printf("%T: Unable to enque refresh\n", p)
+		p.log.Error("unable to enqueue refresh")
 	}
 }
 

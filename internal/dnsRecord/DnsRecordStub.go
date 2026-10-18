@@ -2,6 +2,7 @@ package dnsRecord
 
 import (
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/avanha/pmaas-plugin-porkbun/data"
@@ -10,13 +11,15 @@ import (
 )
 
 type DnsRecordStub struct {
+	log                    *slog.Logger
 	pmaasEntityId          string
 	closeFn                func() error
 	entityWrapperReference atomic.Pointer[spicommon.ThreadSafeEntityWrapper[entities.DnsRecord]]
 }
 
-func NewDnsRecordStub(pmaasEntityId string, entityWrapper *spicommon.ThreadSafeEntityWrapper[entities.DnsRecord]) *DnsRecordStub {
+func NewDnsRecordStub(log *slog.Logger, pmaasEntityId string, entityWrapper *spicommon.ThreadSafeEntityWrapper[entities.DnsRecord]) *DnsRecordStub {
 	stub := &DnsRecordStub{
+		log:           log,
 		pmaasEntityId: pmaasEntityId,
 	}
 
@@ -62,6 +65,6 @@ func (s *DnsRecordStub) Close() {
 	err := closeFn()
 
 	if err != nil {
-		fmt.Printf("Failed to close DnsRecordStub %s: %v", s.Name(), err)
+		s.log.Error("failed to close DnsRecordStub", "name", s.Name(), "error", err)
 	}
 }
