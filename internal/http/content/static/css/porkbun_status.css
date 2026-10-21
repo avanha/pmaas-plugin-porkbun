@@ -40,3 +40,12 @@
 
 
 
+
+.entity-porkbun-status .force {
+    align-items: center;
+}
+
+.entity-porkbun-status .force-result {
+    font-size: 0.9em;
+    white-space: normal;
+}

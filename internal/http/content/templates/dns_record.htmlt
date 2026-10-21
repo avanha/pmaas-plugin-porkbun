@@ -5,6 +5,20 @@
     {{else}}
         <div class="record-value monospace">{{.Value | html}}</div>
     {{end}}
+    {{if ne .Problem ""}}
+        <div class="record-problem">{{.Problem | html}}</div>
+    {{end}}
+    {{if .ResolveSupported}}
+        <div class="record-resolved container">
+            <div class="label">Resolves to</div>
+            {{if not .ResolveChecked}}
+                <div class="value">Not checked yet{{if ne .ResolveError ""}}: {{.ResolveError | html}}{{end}}</div>
+            {{else}}
+                <div class="value monospace {{if .ResolveMatches}}resolved-ok{{else}}resolved-different{{end}}">{{range $i, $v := .ResolvedValues}}{{if $i}}, {{end}}{{$v | html}}{{else}}nothing{{end}}</div>
+                <div class="timestamp">{{.ResolveTime.Format "3:04:05 PM"}}</div>
+            {{end}}
+        </div>
+    {{end}}
     {{if not .LastUpdateTime.IsZero}}
     <div class="dns-record-attributes container">
         <div class="dns-record-ttl container">

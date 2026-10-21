@@ -23,7 +23,7 @@ func (c *fakeContainer) EnqueueOnServerGoRoutine(invocations []func()) error {
 func newRecord(holder *spicommon.StubHolder[entities.DnsRecord]) (*DnsRecord, *fakeContainer) {
 	container := &fakeContainer{}
 	record := NewDnsRecord(container, "DnsRecord_1", "example.com", "A", "www",
-		func(common.Request) error { return nil }, holder)
+		func(common.Request) error { return nil }, holder, Deps{})
 
 	return record, container
 }

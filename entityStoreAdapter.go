@@ -18,3 +18,21 @@ func (e entityStoreAdapter) GetStatusAndEntities() (common.StatusAndEntities, er
 		func() common.StatusAndEntities { return common.StatusAndEntities{} },
 		"unable to get status and entities")
 }
+
+func (e entityStoreAdapter) ForceUpdate() (common.ForceResult, error) {
+	type outcome struct {
+		result common.ForceResult
+		err    error
+	}
+
+	done, err := spi.Exec(e.parent.container, func() outcome {
+		result, err := e.parent.forceUpdate()
+
+		return outcome{result: result, err: err}
+	})
+	if err != nil {
+		return common.ForceResult{}, err
+	}
+
+	return done.result, done.err
+}

@@ -1,4 +1,8 @@
 <div class="entity-porkbun-status">
+    <div class="container force">
+        <button type="button" class="force-update" title="Check every record again, and send the value last asked for again to any that has another, at Porkbun or where this machine looks it up">Check and update now</button>
+        <span class="force-result"></span>
+    </div>
     <div class="container">
         <div class="group-label">Totals</div>
         <div class="container nowrap">

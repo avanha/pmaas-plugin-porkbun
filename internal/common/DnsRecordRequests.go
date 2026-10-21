@@ -18,4 +18,7 @@ type UpdateDnsRecordRequest struct {
 	Domain      string
 	CurrentData data.DnsRecordData
 	NewValue    string
+
+	// Force is that the update is sent although Porkbun already says the record has the value, to have it saved again.
+	Force bool
 }

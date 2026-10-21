@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/avanha/pmaas-spi/logging"
 	"log/slog"
-	"time"
 
 	"github.com/avanha/pmaas-plugin-porkbun/data"
 	"github.com/avanha/pmaas-plugin-porkbun/entities"
@@ -25,6 +24,8 @@ type DnsRecord struct {
 	stubHolder       *spicommon.StubHolder[entities.DnsRecord]
 	stub             *DnsRecordStub
 	requestHandlerFn func(request common.Request) error
+	deps             Deps
+	check            checkState
 }
 
 func NewDnsRecord(
@@ -34,8 +35,10 @@ func NewDnsRecord(
 	recordType string,
 	name string,
 	requestHandlerFn func(request common.Request) error,
-	stubHolder *spicommon.StubHolder[entities.DnsRecord]) *DnsRecord {
+	stubHolder *spicommon.StubHolder[entities.DnsRecord],
+	deps Deps) *DnsRecord {
 	return &DnsRecord{
+		deps:      deps.withDefaults(container),
 		log:       logging.For(container, "dnsrecord"),
 		container: container,
 		id:        id,
@@ -63,6 +66,13 @@ func (r *DnsRecord) Data() data.DnsRecordData {
 
 func (r *DnsRecord) UpdateValue(value string) error {
 	r.log.Debug("received request to update DNS record to value", "name", r.currentData.Name, "value", value)
+
+	return r.sendUpdate(value, false)
+}
+
+// sendUpdate has the record changed to the value, which is then what it is meant to be: it is checked against what Porkbun holds and
+// what resolves. Force has it sent even if Porkbun says the record has the value already.
+func (r *DnsRecord) sendUpdate(value string, force bool) error {
 	resultCh := make(chan common.DnsRecordResult)
 	request := common.Request{
 		RequestType: common.RequestTypeUpdateDnsRecord,
@@ -71,6 +81,7 @@ func (r *DnsRecord) UpdateValue(value string) error {
 			Domain:      r.domain,
 			CurrentData: r.currentData,
 			NewValue:    value,
+			Force:       force,
 		},
 	}
 
@@ -80,22 +91,39 @@ func (r *DnsRecord) UpdateValue(value string) error {
 		return fmt.Errorf("failed to enqueue DNS record %s update: %v", r.currentData.Name, err)
 	}
 
+	r.check.requested = value
+	r.currentData.RequestedValue = value
+	r.check.pendingUpdates++
+
 	go readAndProcessResult(r, resultCh, r.processUpdateValueResult, "update DNS record")
 
 	return nil
 }
 
 func (r *DnsRecord) processUpdateValueResult(result common.DnsRecordResult) {
+	r.check.pendingUpdates = max(r.check.pendingUpdates-1, 0)
+
 	if result.Error == nil {
 		r.log.Debug("updated DNS record successfully", "name", r.currentData.Name, "message", result.Message)
 		r.updateData(&result.CurrentData)
+
+		if result.CurrentData.LastModifiedTime.After(r.currentData.LastModifiedTime) {
+			// Changed now: what resolves is meant to be different from before, and has until the TTL and a grace period to be. An alert
+			// for what resolved before is over.
+			r.restartResolveGrace()
+		}
+
 		r.currentData.LastModifiedTime = result.CurrentData.LastModifiedTime
 		r.currentData.UpdateSuccessCount++
+		r.check.apiProblem = ""
+		r.afterRead()
 	} else {
 		r.log.Error("error updating DNS record", "name", r.currentData.Name, "error", result.Error)
 		r.currentData.LastError = result.Error
-		r.currentData.LastErrorTime = time.Now()
+		r.currentData.LastErrorTime = r.deps.Now()
 		r.currentData.UpdateErrorCount++
+		r.check.apiProblem = fmt.Sprintf("the value %q could not be saved at Porkbun: %v", r.check.requested, result.Error)
+		r.syncAlert()
 	}
 }
 
@@ -182,10 +210,11 @@ func (r *DnsRecord) processGetDnsRecordResult(result common.DnsRecordResult) {
 		r.log.Debug("DNS record", "name", result.CurrentData.Name, "message", result.Message)
 		r.updateData(&result.CurrentData)
 		r.currentData.GetSuccessCount++
+		r.afterRead()
 	} else {
 		r.log.Error("error retrieving DNS record", "name", r.currentData.Name, "error", result.Error)
 		r.currentData.LastError = result.Error
-		r.currentData.LastErrorTime = time.Now()
+		r.currentData.LastErrorTime = r.deps.Now()
 		r.currentData.GetErrorCount++
 	}
 }

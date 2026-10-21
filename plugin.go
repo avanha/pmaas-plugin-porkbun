@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/avanha/pmaas-spi/logging"
 	"log/slog"
+	"sort"
 	"sync"
 	"time"
 
@@ -119,6 +120,11 @@ func (p *plugin) Start() {
 func (p *plugin) Stop() chan func() {
 	p.log.Info("stopping")
 	p.running = false
+
+	for _, record := range p.dnsRecords {
+		record.Close()
+	}
+
 	p.requestRetryingQueue.Stop()
 	p.requestQueue.Stop()
 	p.cancelFn()
@@ -150,7 +156,8 @@ func (p *plugin) processConfig() {
 				configuredDnsRecord.Type,
 				configuredDnsRecord.Name,
 				p.enqueueRequest,
-				configuredDnsRecord.StubHolder())
+				configuredDnsRecord.StubHolder(),
+				dnsRecord.Deps{AlertSource: p.ShortName()})
 			p.dnsRecords[key] = dnsRecordInstance
 		}
 	}
@@ -259,6 +266,34 @@ func (p *plugin) refresh() error {
 	}
 
 	return nil
+}
+
+// forceUpdate checks every record again, and sends the value last asked for again to those that have anything else, at Porkbun or
+// where this machine's resolver looks. Must be called from the main plugin goroutine.
+func (p *plugin) forceUpdate() (common.ForceResult, error) {
+	if !p.running {
+		return common.ForceResult{}, fmt.Errorf("plugin is not running")
+	}
+
+	var result common.ForceResult
+
+	for key, record := range p.dnsRecords {
+		updated, err := record.Force()
+
+		switch {
+		case err != nil:
+			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", key, err))
+		case updated:
+			result.Updated++
+		default:
+			result.Checked++
+		}
+	}
+
+	sort.Strings(result.Failed)
+	p.log.Info("forced an update", "updated", result.Updated, "checked", result.Checked, "failed", len(result.Failed))
+
+	return result, nil
 }
 
 // enqueueRequest sends a request to the plugin's worker(s) if the plugin is running.

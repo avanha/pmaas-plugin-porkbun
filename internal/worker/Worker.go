@@ -16,6 +16,7 @@ import (
 
 	"github.com/avanha/pmaas-plugin-porkbun/data"
 	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/resolve"
 	spicommon "github.com/avanha/pmaas-spi/common"
 )
 
@@ -35,6 +36,9 @@ type Worker struct {
 // This is a permanent, non-retryable condition: retrying with the same credentials will never
 // succeed, unlike transient errors (network failures, rate limiting, 5xx-equivalents).
 var ErrInvalidCredentials = errors.New("porkbun: invalid API key/secret")
+
+// ErrNotSaved is that Porkbun accepted an update of a record and, asked for the record afterwards, still has the old value.
+var ErrNotSaved = errors.New("porkbun: the update was not saved")
 
 // isInvalidCredentialsMessage checks a Porkbun error message for the known text it returns
 // when the configured API key or secret API key is invalid.
@@ -155,45 +159,27 @@ func (w *Worker) processGetDnsRecordRequest(
 func (w *Worker) processUpdateDnsRecordRequest(
 	request *common.UpdateDnsRecordRequest,
 	resultCh chan common.DnsRecordResult) {
-	var currentRecord ResponseDnsRecordMessage
-	var err error
-	var updateTime time.Time
-	if request.CurrentData.LastUpdateTime.Before(time.Now().Add(-5 * time.Minute)) {
-		currentRecord, err = w.getDnsRecord(request.Domain, request.CurrentData.Type, request.CurrentData.Name)
+	// From what Porkbun has now, never from a copy kept from an earlier read: a copy that was wrong would have an update that is
+	// needed skipped as not needed.
+	currentRecord, err := w.getDnsRecord(request.Domain, request.CurrentData.Type, request.CurrentData.Name)
 
-		if err != nil {
-			completeDnsRecordRequestWithError(
-				w.log,
-				resultCh,
-				fmt.Errorf("error retrieving DNS record: %w", err),
-				"DNS record update failed")
-			return
-		}
-		updateTime = time.Now()
-	} else {
-		// Synthesize ResponseDnsRecordMessage from current data
-		currentRecord = ResponseDnsRecordMessage{
-			RecordWithIdMessage: RecordWithIdMessage{
-				Id: request.CurrentData.Id,
-			},
-			DnsRecordMessage: DnsRecordMessage{
-				Name:    request.CurrentData.Name,
-				Type:    request.CurrentData.Type,
-				Content: request.CurrentData.Value,
-				Ttl:     strconv.Itoa(int(request.CurrentData.Ttl)),
-				Prio:    strconv.Itoa(int(request.CurrentData.Priority)),
-				Notes:   request.CurrentData.Notes,
-			},
-		}
-		updateTime = request.CurrentData.LastUpdateTime
+	if err != nil {
+		completeDnsRecordRequestWithError(
+			w.log,
+			resultCh,
+			fmt.Errorf("error retrieving DNS record: %w", err),
+			"DNS record update failed")
+		return
 	}
 
-	if currentRecord.Content == request.NewValue {
+	readTime := time.Now()
+
+	if !request.Force && resolve.Same(currentRecord.Type, currentRecord.Content, request.NewValue) {
 		completeDnsRecordRequestWithSuccess(
 			w.log,
 			resultCh,
 			&currentRecord,
-			&updateTime,
+			&readTime,
 			&request.CurrentData.LastModifiedTime,
 			fmt.Sprintf("DNS record %s %s %s already has value \"%s\", no update needed",
 				request.Domain, request.CurrentData.Type, request.CurrentData.Name, request.NewValue),
@@ -201,9 +187,7 @@ func (w *Worker) processUpdateDnsRecordRequest(
 		return
 	}
 
-	currentRecord, err = w.updateDnsRecord(&currentRecord, request)
-
-	if err != nil {
+	if _, err = w.updateDnsRecord(&currentRecord, request); err != nil {
 		completeDnsRecordRequestWithError(
 			w.log,
 			resultCh,
@@ -212,12 +196,34 @@ func (w *Worker) processUpdateDnsRecordRequest(
 		return
 	}
 
+	// Porkbun said it was done. It is only so if it says so when asked.
+	savedRecord, err := w.getDnsRecord(request.Domain, request.CurrentData.Type, request.CurrentData.Name)
+
+	if err != nil {
+		completeDnsRecordRequestWithError(
+			w.log,
+			resultCh,
+			fmt.Errorf("unable to read the DNS record back after updating it: %w", err),
+			"DNS record update could not be verified")
+		return
+	}
+
+	if !resolve.Same(savedRecord.Type, savedRecord.Content, request.NewValue) {
+		completeDnsRecordRequestWithError(
+			w.log,
+			resultCh,
+			fmt.Errorf("%w: %s %s %s was updated to \"%s\" and is still \"%s\"",
+				ErrNotSaved, request.Domain, request.CurrentData.Type, request.CurrentData.Name, request.NewValue, savedRecord.Content),
+			"DNS record update was not saved")
+		return
+	}
+
 	now := time.Now()
 	completeDnsRecordRequestWithSuccess(
 		w.log,
 		resultCh,
-		&currentRecord,
-		&updateTime,
+		&savedRecord,
+		&now,
 		&now,
 		"Updated successfully",
 		"DNS record update")

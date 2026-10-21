@@ -26,9 +26,20 @@ var dnsRecordTemplate = spi.TemplateInfo{
 }
 
 var statusTemplate = spi.TemplateInfo{
-	Name:   "porkbun_status",
-	Paths:  []string{"templates/porkbun_status.htmlt"},
-	Styles: []string{"css/porkbun_status.css"},
+	Name:    "porkbun_status",
+	Paths:   []string{"templates/porkbun_status.htmlt"},
+	Styles:  []string{"css/porkbun_status.css"},
+	Scripts: []string{"js/porkbun.js"},
+}
+
+// forceRequest is what the button on the status bar sends. It has nothing in it: it says to check and update everything.
+type forceRequest struct{}
+
+// forceResponse is what forcing an update did.
+type forceResponse struct {
+	Updated int
+	Checked int
+	Failed  []string
 }
 
 type Handler struct {
@@ -47,7 +58,9 @@ func (h *Handler) Init(container spi.IPMAASContainer, entityStore common.EntityS
 	h.entityStore = entityStore
 	container.ProvideContentFS(&contentFS, "content")
 	container.EnableStaticContent("static")
-	container.AddRoute("", h.handleHttpListRequest)
+	// The page has a button, which a visitor's browser sends from, so it needs the XSRF cookie the server gives a page that supports it.
+	container.AddRouteWithOptions("", h.handleHttpListRequest, &spi.HttpHandlerOptions{SupportsXsrfValidation: true})
+	container.AddJsonRoute("force", func() any { return &forceRequest{} }, h.handleForceRequest)
 	container.RegisterEntityRenderer(
 		reflect.TypeOf((*data.PluginStatus)(nil)).Elem(),
 		h.statusDataRendererFactory)
@@ -88,6 +101,21 @@ func (h *Handler) handleHttpListRequest(writer http.ResponseWriter, request *htt
 			Header: &result.Status,
 		},
 		entityPointers)
+}
+
+// handleForceRequest checks every record again and sends the value last asked for again to those that don't have it, as the button on
+// the status bar asks. Like every JSON route it needs the XSRF cookie.
+func (h *Handler) handleForceRequest(_ http.ResponseWriter, r *http.Request, _ any) (any, error) {
+	if r.Method != http.MethodPost {
+		return nil, errors.New("method not allowed")
+	}
+
+	result, err := h.entityStore.ForceUpdate()
+	if err != nil {
+		return nil, err
+	}
+
+	return forceResponse{Updated: result.Updated, Checked: result.Checked, Failed: result.Failed}, nil
 }
 
 func (h *Handler) statusDataRendererFactory() (spi.EntityRenderer, error) {
