@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -381,5 +382,45 @@ func TestClose_StopsTheRecheckAndDropsLateAnswers(t *testing.T) {
 
 	if h.record.Data().ResolveChecked && !h.record.Data().ResolveMatches && len(h.raised()) > 0 {
 		t.Error("took in an answer after it was closed")
+	}
+}
+
+func TestCheck_TheAlertSaysWhoResolvedAndIsTitledAsHavingAnUnexpectedValue(t *testing.T) {
+	h := newHarness(t, "A")
+	h.record.deps.Resolver = "1.1.1.1"
+	h.resolve = func() ([]string, error) { return []string{"10.0.0.1"}, nil }
+
+	h.read("10.0.0.9")
+	h.advance(16 * time.Minute)
+
+	raised := h.raised()
+	if len(raised) != 1 || !strings.Contains(raised[0].Message, "the DNS server 1.1.1.1 resolves www.example.com") ||
+		!strings.HasSuffix(raised[0].Title, "has an unexpected value") {
+		t.Fatalf("%+v", raised)
+	}
+
+	h = newHarness(t, "A")
+	h.resolve = func() ([]string, error) { return []string{"10.0.0.1"}, nil }
+	h.read("10.0.0.9")
+	h.advance(16 * time.Minute)
+
+	if raised := h.raised(); len(raised) != 1 || !strings.Contains(raised[0].Message, "this machine resolves") {
+		t.Errorf("%+v", raised)
+	}
+}
+
+func TestCheck_ALookupThatFailsLeavesWhatWasLastSeenAsItWas(t *testing.T) {
+	h := newHarness(t, "A")
+	h.resolve = func() ([]string, error) { return []string{"10.0.0.9"}, nil }
+	h.read("10.0.0.9")
+	seen := h.record.Data().ResolveTime
+
+	h.resolve = func() ([]string, error) { return nil, errors.New("i/o timeout") }
+	h.advance(recheckEvery)
+	h.read("10.0.0.9")
+
+	d := h.record.Data()
+	if !d.ResolveTime.Equal(seen) || len(d.ResolvedValues) != 1 || !d.ResolveMatches || d.ResolveError == "" {
+		t.Errorf("%+v", d)
 	}
 }

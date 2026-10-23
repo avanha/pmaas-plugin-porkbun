@@ -17,6 +17,7 @@ import (
 	"github.com/avanha/pmaas-plugin-porkbun/internal/common"
 	"github.com/avanha/pmaas-plugin-porkbun/internal/dnsRecord"
 	"github.com/avanha/pmaas-plugin-porkbun/internal/http"
+	"github.com/avanha/pmaas-plugin-porkbun/internal/resolve"
 	"github.com/avanha/pmaas-plugin-porkbun/internal/worker"
 	"github.com/avanha/pmaas-spi"
 )
@@ -149,6 +150,11 @@ func (p *plugin) processConfig() {
 		for _, configuredDnsRecord := range configuredDomain.DnsRecords {
 			key := fmt.Sprintf("%s_%s.%s",
 				configuredDnsRecord.Name, configuredDomain.Name, configuredDnsRecord.Type)
+			resolver := p.config.Resolver
+			if configuredDnsRecord.Resolver != "" {
+				resolver = configuredDnsRecord.Resolver
+			}
+
 			dnsRecordInstance := dnsRecord.NewDnsRecord(
 				p.container,
 				fmt.Sprintf("DnsRecord_%v", p.nextEntityId()),
@@ -157,7 +163,7 @@ func (p *plugin) processConfig() {
 				configuredDnsRecord.Name,
 				p.enqueueRequest,
 				configuredDnsRecord.StubHolder(),
-				dnsRecord.Deps{AlertSource: p.ShortName()})
+				dnsRecord.Deps{AlertSource: p.ShortName(), Lookup: resolve.Server(resolver), Resolver: resolver})
 			p.dnsRecords[key] = dnsRecordInstance
 		}
 	}

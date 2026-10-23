@@ -27,10 +27,11 @@ type DnsRecordData struct {
 	Problem string
 
 	// ResolveSupported is whether the record's type can be checked against this machine's resolver, and ResolveChecked whether it has
-	// been. ResolvedValues is what the resolver answered at ResolveTime, ResolveMatches whether the record's value is among them, and
+	// been. Resolver is the DNS server it is looked up through, or empty for this machine's own resolver. ResolvedValues is what the resolver answered at ResolveTime, ResolveMatches whether the record's value is among them, and
 	// ResolveError why the resolver could not say, if it could not.
 	ResolveSupported bool
 	ResolveChecked   bool
+	Resolver         string
 	ResolveTime      time.Time
 	ResolvedValues   []string
 	ResolveMatches   bool

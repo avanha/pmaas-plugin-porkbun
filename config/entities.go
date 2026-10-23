@@ -40,6 +40,11 @@ type DnsRecord struct {
 	Name  string
 	Value string
 
+	// Resolver is the DNS server this record is looked up through, instead of the plugin's (PluginConfig.Resolver): an address, or
+	// ResolverCloudflare or ResolverGoogle. For a record that this machine's resolver is meant to answer differently, such as a mail host
+	// that has an address inside the house.
+	Resolver string
+
 	stub spicommon.StubHolder[entities.DnsRecord]
 }
 

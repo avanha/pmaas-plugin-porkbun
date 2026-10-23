@@ -21,10 +21,16 @@ Porkbun saying an edit worked is not the same as the record being changed, so th
   always decided from a fresh read, never from one kept from earlier.
 - **A read** (every four hours, and after every update) that has a value other than the one last asked for, with no update on its
   way, is the same alert.
-- **The resolver** of the machine the plugin runs on is asked for each record of type A, AAAA, CNAME or TXT after each read, and again
+- **The resolver**, by default that of the machine the plugin runs on, is asked for each record of type A, AAAA, CNAME or TXT after each read, and again
   every five minutes for as long as its answer differs from the record's value. Until the record's TTL and five minutes have passed since
   the record was changed (or, for one that was not changed by this plugin, since the answer was first seen to differ) a different answer is
   not a problem: a cache is entitled to it. After that it is, and the alert says what resolved.
+- **Which DNS server.** For a record that this machine's resolver is meant to answer differently from the world (a mail host with an
+  address inside the house, from a static override in the forwarding resolver), set `Resolver` on the record to a public server:
+  `mailhost.Resolver = porkbunconfig.ResolverCloudflare` (1.1.1.1) or `ResolverGoogle` (8.8.8.8), or any `host` or `host:port`.
+  `PluginConfig.Resolver` sets one for every record that has none of its own. A public server caches too, so the same TTL and grace apply.
+- **On the page** a record that resolves to its value has a green tick and "as of" the time it was last checked. One that does not has a
+  red cross and the time, and on the next line what it resolves to. Hovering over it says which server it was looked up through.
 - **One alert per record** is raised, as a warning, from the source `porkbun` with the key `domain/type/name`. It says what is wrong,
   and clears when nothing is.
 - **Check and update now**, the button at the top of the page, checks every record again, and sends the value last asked for again

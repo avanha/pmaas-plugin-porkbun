@@ -44,8 +44,9 @@ func NewDnsRecord(
 		id:        id,
 		domain:    domain,
 		currentData: data.DnsRecordData{
-			Name: name,
-			Type: recordType,
+			Name:     name,
+			Type:     recordType,
+			Resolver: deps.Resolver,
 		},
 		requestHandlerFn: requestHandlerFn,
 		stubHolder:       stubHolder,

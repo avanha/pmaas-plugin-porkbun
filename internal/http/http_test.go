@@ -75,33 +75,73 @@ func TestStatusTemplate_HasTheButton(t *testing.T) {
 	}
 }
 
-func TestRecordTemplate_ShowsWhatResolvesAndWhatIsWrongWithoutLettingItBecomeMarkup(t *testing.T) {
+func TestRecordTemplate_AGoodResolutionIsAGreenTickAndWhenAndABadOneARedCrossAndWhatItResolvesTo(t *testing.T) {
 	record := &data.DnsRecordData{
-		Name: "www", Type: "A", Value: "10.0.0.2", ResolveSupported: true, ResolveChecked: true,
-		ResolvedValues: []string{"10.0.0.1", "10.0.0.3"}, ResolveTime: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC),
-		Problem: "this machine resolves <b>x</b>",
+		Name: "www", Type: "A", Value: "10.0.0.2", ResolveSupported: true, ResolveChecked: true, ResolveMatches: true,
+		ResolvedValues: []string{"10.0.0.2"}, ResolveTime: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC),
 	}
 
 	out := render(t, "dns_record.htmlt", record)
 
-	if !strings.Contains(out, "10.0.0.1, 10.0.0.3") || !strings.Contains(out, "resolved-different") || !strings.Contains(out, "record-problem") {
+	if !strings.Contains(out, "resolve-ok") || !strings.Contains(out, "as of 12:00:00 PM") || strings.Contains(out, "resolve-bad") {
 		t.Errorf("%s", out)
+	}
+
+	// A good one doesn't give the address again: it is the record's value, which is above.
+	if strings.Contains(out, "Resolves to") {
+		t.Errorf("the address was given twice: %s", out)
+	}
+
+	record.ResolveMatches = false
+	record.ResolvedValues = []string{"2605:a601:a9c5:602:1e69:7aff:fe0d:b1e1", "10.0.0.3"}
+	record.Problem = "this machine resolves <b>x</b>"
+
+	out = render(t, "dns_record.htmlt", record)
+
+	if !strings.Contains(out, "resolve-bad") || !strings.Contains(out, "as of 12:00:00 PM") || strings.Contains(out, "resolve-ok") ||
+		!strings.Contains(out, "Resolves to") || !strings.Contains(out, "2605:a601:a9c5:602:1e69:7aff:fe0d:b1e1, 10.0.0.3") || !strings.Contains(out, "record-problem") {
+		t.Errorf("%s", out)
+	}
+
+	// The time is not on the line with the address, which is long and would wrap it.
+	resolvesTo := out[strings.Index(out, "record-resolved-to"):]
+	if strings.Contains(resolvesTo, "12:00:00") {
+		t.Errorf("the time is with the address: %s", resolvesTo)
 	}
 
 	if strings.Contains(out, "<b>x</b>") {
 		t.Errorf("a problem became markup: %s", out)
 	}
 
-	record.ResolveChecked, record.ResolveMatches, record.Problem = true, true, ""
 	record.ResolvedValues = nil
 
-	if out := render(t, "dns_record.htmlt", record); strings.Contains(out, "record-problem") || !strings.Contains(out, "nothing") {
+	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "nothing") {
+		t.Errorf("%s", out)
+	}
+
+	record.ResolveChecked, record.Problem = false, ""
+
+	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "Not checked yet") || strings.Contains(out, "resolve-bad") {
 		t.Errorf("%s", out)
 	}
 
 	record.ResolveSupported = false
 
-	if out := render(t, "dns_record.htmlt", record); strings.Contains(out, "Resolves to") {
+	if out := render(t, "dns_record.htmlt", record); strings.Contains(out, "Resolves") {
+		t.Errorf("%s", out)
+	}
+}
+
+func TestRecordTemplate_SaysWhichServerItWasLookedUpThrough(t *testing.T) {
+	record := &data.DnsRecordData{Name: "www", Type: "A", ResolveSupported: true, ResolveChecked: true, ResolveMatches: true, Resolver: "1.1.1.1"}
+
+	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "Looked up through 1.1.1.1") {
+		t.Errorf("%s", out)
+	}
+
+	record.Resolver = ""
+
+	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "this machine") {
 		t.Errorf("%s", out)
 	}
 }

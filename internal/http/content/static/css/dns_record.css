@@ -61,3 +61,23 @@
 .entity-dns-record .resolved-different {
     color: #b02a24;
 }
+
+.entity-dns-record .resolve-mark {
+    font-weight: bold;
+}
+
+.entity-dns-record .resolve-ok {
+    color: #2e8b3d;
+}
+
+.entity-dns-record .resolve-bad {
+    color: #b02a24;
+}
+
+.entity-dns-record .record-resolved .timestamp {
+    white-space: nowrap;
+}
+
+.entity-dns-record .record-resolved-to .value {
+    overflow-wrap: anywhere;
+}

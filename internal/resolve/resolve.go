@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+	"time"
 )
 
 // Lookup answers a record's type and fully qualified name with the values it resolves to.
@@ -36,8 +37,45 @@ func FQDN(name string, domain string) string {
 
 // System is the Lookup that asks the resolver of this machine (the Go resolver, which uses what the system is set up to).
 func System(ctx context.Context, recordType string, fqdn string) ([]string, error) {
-	resolver := net.DefaultResolver
+	return lookupWith(ctx, net.DefaultResolver, recordType, fqdn)
+}
 
+// Server is the Lookup that asks the DNS server at the address, as "host:port" or just "host", which is port 53: 1.1.1.1 for Cloudflare, or
+// 8.8.8.8 for Google. It is what to ask for a record that this machine's own resolver is set up to answer differently from the world, such as
+// a mail host that has an address inside the house. An empty address is System.
+func Server(address string) Lookup {
+	if address == "" {
+		return System
+	}
+
+	address = withPort(address)
+	resolver := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network string, _ string) (net.Conn, error) {
+			dialer := net.Dialer{Timeout: serverDialTimeout}
+
+			return dialer.DialContext(ctx, network, address)
+		},
+	}
+
+	return func(ctx context.Context, recordType string, fqdn string) ([]string, error) {
+		return lookupWith(ctx, resolver, recordType, fqdn)
+	}
+}
+
+// serverDialTimeout is how long a DNS server is waited for to be reached.
+const serverDialTimeout = 5 * time.Second
+
+// withPort is the address with the DNS port if it has no port.
+func withPort(address string) string {
+	if _, _, err := net.SplitHostPort(address); err == nil {
+		return address
+	}
+
+	return net.JoinHostPort(strings.Trim(address, "[]"), "53")
+}
+
+func lookupWith(ctx context.Context, resolver *net.Resolver, recordType string, fqdn string) ([]string, error) {
 	switch strings.ToUpper(recordType) {
 	case "A", "AAAA":
 		network := "ip4"

@@ -9,15 +9,28 @@
         <div class="record-problem">{{.Problem | html}}</div>
     {{end}}
     {{if .ResolveSupported}}
-        <div class="record-resolved container">
-            <div class="label">Resolves to</div>
+        <div class="record-resolved container" title="Looked up through {{if eq .Resolver ""}}this machine's resolver{{else}}{{.Resolver | html}}{{end}}">
+            <div class="label">Resolves</div>
             {{if not .ResolveChecked}}
                 <div class="value">Not checked yet{{if ne .ResolveError ""}}: {{.ResolveError | html}}{{end}}</div>
             {{else}}
-                <div class="value monospace {{if .ResolveMatches}}resolved-ok{{else}}resolved-different{{end}}">{{range $i, $v := .ResolvedValues}}{{if $i}}, {{end}}{{$v | html}}{{else}}nothing{{end}}</div>
-                <div class="timestamp">{{.ResolveTime.Format "3:04:05 PM"}}</div>
+                {{if .ResolveMatches}}
+                    <div class="resolve-mark resolve-ok" role="img" aria-label="resolves to the record's value">&#10003;</div>
+                {{else}}
+                    <div class="resolve-mark resolve-bad" role="img" aria-label="does not resolve to the record's value">&#10007;</div>
+                {{end}}
+                <div class="timestamp">as of {{.ResolveTime.Format "3:04:05 PM"}}</div>
             {{end}}
         </div>
+        {{if and .ResolveChecked (not .ResolveMatches)}}
+            <div class="record-resolved-to container">
+                <div class="label">Resolves to</div>
+                <div class="value monospace resolved-different">{{range $i, $v := .ResolvedValues}}{{if $i}}, {{end}}{{$v | html}}{{else}}nothing{{end}}</div>
+            </div>
+        {{end}}
+        {{if and .ResolveChecked (ne .ResolveError "")}}
+            <div class="record-problem">The last lookup failed: {{.ResolveError | html}}</div>
+        {{end}}
     {{end}}
     {{if not .LastUpdateTime.IsZero}}
     <div class="dns-record-attributes container">

@@ -45,6 +45,9 @@ type Deps struct {
 	// Go runs f off the plugin's goroutine, which is where a lookup waits.
 	Go func(f func())
 
+	// Resolver is the DNS server Lookup asks, for the page and the alert to say, or empty for this machine's own resolver.
+	Resolver string
+
 	// Alerts and AlertSource are where the alert for the record is raised from.
 	Alerts      alert.Broadcaster
 	AlertSource string
@@ -185,8 +188,6 @@ func (r *DnsRecord) onResolved(generation int, expected string, values []string,
 
 	now := r.deps.Now()
 	r.currentData.ResolveSupported = true
-	r.currentData.ResolveTime = now
-	r.currentData.ResolvedValues = values
 	r.currentData.ResolveError = ""
 
 	if err != nil {
@@ -201,8 +202,11 @@ func (r *DnsRecord) onResolved(generation int, expected string, values []string,
 			return
 		}
 
-		values, r.currentData.ResolvedValues = nil, nil
+		values = nil
 	}
+
+	r.currentData.ResolveTime = now
+	r.currentData.ResolvedValues = values
 
 	matches := resolve.Matches(r.currentData.Type, expected, values)
 	r.currentData.ResolveChecked, r.currentData.ResolveMatches = true, matches
@@ -226,12 +230,21 @@ func (r *DnsRecord) onResolved(generation int, expected string, values []string,
 	if due := start.Add(r.ttl() + resolveGrace); now.Before(due) {
 		r.log.Debug("DNS record resolves to something else, within its TTL", "name", r.fqdn(), "expected", expected, "resolved", values, "until", due)
 	} else {
-		r.check.resolveProblem = fmt.Sprintf("this machine resolves %s to %s, not %q, more than %s after it was changed or first seen so",
-			r.fqdn(), describe(values), expected, (r.ttl() + resolveGrace).Round(time.Second))
+		r.check.resolveProblem = fmt.Sprintf("%s resolves %s to %s, not %q, more than %s after it was changed or first seen so",
+			r.resolverName(), r.fqdn(), describe(values), expected, (r.ttl() + resolveGrace).Round(time.Second))
 	}
 
 	r.syncAlert()
 	r.recheckLater()
+}
+
+// resolverName is who does the resolving, for what is said about it.
+func (r *DnsRecord) resolverName() string {
+	if r.deps.Resolver == "" {
+		return "this machine"
+	}
+
+	return "the DNS server " + r.deps.Resolver
 }
 
 func describe(values []string) string {
@@ -292,7 +305,7 @@ func (r *DnsRecord) syncAlert() {
 		return
 	}
 
-	title := fmt.Sprintf("DNS record %s (%s) is not as it should be", r.fqdn(), r.currentData.Type)
+	title := fmt.Sprintf("DNS record %s (%s) has an unexpected value", r.fqdn(), r.currentData.Type)
 
 	if err := alert.Raise(r.deps.Alerts, r.deps.AlertSource, r.alertKey(), alert.SeverityWarning, title, message); err != nil {
 		r.log.Error("unable to raise the alert", "name", r.fqdn(), "error", err)
