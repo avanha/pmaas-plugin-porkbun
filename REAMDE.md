@@ -39,6 +39,12 @@ Porkbun saying an edit worked is not the same as the record being changed, so th
   the alert and starts the TTL and grace over, so the alert comes back only if the resolver still differs after that. The value last asked
   for is kept in memory: after the plugin has restarted, a record has none until the assembly asks for one.
 
+### Old browsers
+
+The page is used on an iPad that stopped at iOS 9 (Safari 9), so `porkbun.js` is plain ES5 with `XMLHttpRequest` (a script that uses an arrow function, a
+class field or `fetch` doesn't run there at all, and the button can't be clicked), and the stylesheet spaces items with margins, not `gap`, which
+needs Safari 14.1. Tests in `internal/http` (`oldbrowsers_test.go`, `js_test/`) look for what it doesn't have.
+
 ### Notes
 
 - Escape Analysis: `go build -gcflags="-m -m" . &> ea.txt`
