@@ -75,38 +75,55 @@ func TestStatusTemplate_HasTheButton(t *testing.T) {
 	}
 }
 
-func TestRecordTemplate_AGoodResolutionIsAGreenTickAndWhenAndABadOneARedCrossAndWhatItResolvesTo(t *testing.T) {
+func TestRecordTemplate_ATickAndWhenAreOnTheLineOfTheAddressAndThereIsNoOtherLineWhenItResolvesToIt(t *testing.T) {
 	record := &data.DnsRecordData{
-		Name: "www", Type: "A", Value: "10.0.0.2", ResolveSupported: true, ResolveChecked: true, ResolveMatches: true,
-		ResolvedValues: []string{"10.0.0.2"}, ResolveTime: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC),
+		Name: "www", Type: "AAAA", Value: "2605:a601:a9c5:600:1e69:7aff:fe0d:b1e1", ResolveSupported: true, ResolveChecked: true, ResolveMatches: true,
+		ResolvedValues: []string{"2605:a601:a9c5:600:1e69:7aff:fe0d:b1e1"}, ResolveTime: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC),
 	}
 
 	out := render(t, "dns_record.htmlt", record)
 
-	if !strings.Contains(out, "resolve-ok") || !strings.Contains(out, "as of 12:00:00 PM") || strings.Contains(out, "resolve-bad") {
+	// The value, the mark and the time are in one block, in that order.
+	line := out[strings.Index(out, `class="record-value-line"`):]
+	line = line[:strings.Index(line, "</div>")]
+
+	for _, want := range []string{"2605:a601:a9c5:600:1e69:7aff:fe0d:b1e1", "resolve-ok", "as of 12:00:00 PM"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("%q is not on the line of the address: %s", want, line)
+		}
+	}
+
+	if strings.Index(line, "2605:") > strings.Index(line, "resolve-ok") || strings.Index(line, "resolve-ok") > strings.Index(line, "as of") {
+		t.Errorf("not in order: %s", line)
+	}
+
+	// When it checks out there is nothing else about it.
+	if strings.Contains(out, "Resolves") || strings.Contains(out, "resolve-bad") {
+		t.Errorf("a line for what it resolves to when it resolves to the value: %s", out)
+	}
+}
+
+func TestRecordTemplate_ARecordThatDoesNotResolveToItsValueHasACrossOnTheLineOfTheAddressAndWhatItResolvesToBelow(t *testing.T) {
+	record := &data.DnsRecordData{
+		Name: "www", Type: "AAAA", Value: "10.0.0.2", ResolveSupported: true, ResolveChecked: true,
+		ResolvedValues: []string{"2605:a601:a9c5:602:1e69:7aff:fe0d:b1e1", "10.0.0.3"}, ResolveTime: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC),
+		Problem: "this machine resolves <b>x</b>",
+	}
+
+	out := render(t, "dns_record.htmlt", record)
+
+	line := out[strings.Index(out, `class="record-value-line"`):]
+	line = line[:strings.Index(line, "</div>")]
+
+	if !strings.Contains(line, "resolve-bad") || !strings.Contains(line, "as of 12:00:00 PM") || strings.Contains(line, "resolve-ok") {
+		t.Errorf("%s", line)
+	}
+
+	below := out[strings.Index(out, "record-resolved-to"):]
+
+	if !strings.Contains(below, "Resolves to") || !strings.Contains(below, "2605:a601:a9c5:602:1e69:7aff:fe0d:b1e1, 10.0.0.3") ||
+		strings.Contains(below, "12:00:00") || !strings.Contains(out, "record-problem") {
 		t.Errorf("%s", out)
-	}
-
-	// A good one doesn't give the address again: it is the record's value, which is above.
-	if strings.Contains(out, "Resolves to") {
-		t.Errorf("the address was given twice: %s", out)
-	}
-
-	record.ResolveMatches = false
-	record.ResolvedValues = []string{"2605:a601:a9c5:602:1e69:7aff:fe0d:b1e1", "10.0.0.3"}
-	record.Problem = "this machine resolves <b>x</b>"
-
-	out = render(t, "dns_record.htmlt", record)
-
-	if !strings.Contains(out, "resolve-bad") || !strings.Contains(out, "as of 12:00:00 PM") || strings.Contains(out, "resolve-ok") ||
-		!strings.Contains(out, "Resolves to") || !strings.Contains(out, "2605:a601:a9c5:602:1e69:7aff:fe0d:b1e1, 10.0.0.3") || !strings.Contains(out, "record-problem") {
-		t.Errorf("%s", out)
-	}
-
-	// The time is not on the line with the address, which is long and would wrap it.
-	resolvesTo := out[strings.Index(out, "record-resolved-to"):]
-	if strings.Contains(resolvesTo, "12:00:00") {
-		t.Errorf("the time is with the address: %s", resolvesTo)
 	}
 
 	if strings.Contains(out, "<b>x</b>") {
@@ -118,22 +135,38 @@ func TestRecordTemplate_AGoodResolutionIsAGreenTickAndWhenAndABadOneARedCrossAnd
 	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "nothing") {
 		t.Errorf("%s", out)
 	}
+}
 
-	record.ResolveChecked, record.Problem = false, ""
+func TestRecordTemplate_NotCheckedYetShowsNothingButAFailedLookupIsSaid(t *testing.T) {
+	record := &data.DnsRecordData{Name: "www", Type: "A", Value: "10.0.0.2", ResolveSupported: true}
 
-	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "Not checked yet") || strings.Contains(out, "resolve-bad") {
+	out := render(t, "dns_record.htmlt", record)
+	if strings.Contains(out, "resolve-") || strings.Contains(out, "as of") || strings.Contains(out, "Resolves") || strings.Contains(out, "lookup failed") {
+		t.Errorf("%s", out)
+	}
+
+	record.ResolveError = "i/o timeout"
+
+	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "i/o timeout") || strings.Contains(out, "resolve-ok") {
 		t.Errorf("%s", out)
 	}
 
 	record.ResolveSupported = false
 
-	if out := render(t, "dns_record.htmlt", record); strings.Contains(out, "Resolves") {
+	if out := render(t, "dns_record.htmlt", record); strings.Contains(out, "i/o timeout") || strings.Contains(out, "as of") {
+		t.Errorf("%s", out)
+	}
+
+	// A record that has no value yet has nothing to be ticked.
+	record = &data.DnsRecordData{Name: "www", Type: "A", ResolveSupported: true, ResolveChecked: true, ResolveMatches: true}
+
+	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "Waiting for update") || strings.Contains(out, "resolve-ok") {
 		t.Errorf("%s", out)
 	}
 }
 
 func TestRecordTemplate_SaysWhichServerItWasLookedUpThrough(t *testing.T) {
-	record := &data.DnsRecordData{Name: "www", Type: "A", ResolveSupported: true, ResolveChecked: true, ResolveMatches: true, Resolver: "1.1.1.1"}
+	record := &data.DnsRecordData{Name: "www", Type: "A", Value: "10.0.0.2", ResolveSupported: true, ResolveChecked: true, ResolveMatches: true, Resolver: "1.1.1.1"}
 
 	if out := render(t, "dns_record.htmlt", record); !strings.Contains(out, "Looked up through 1.1.1.1") {
 		t.Errorf("%s", out)

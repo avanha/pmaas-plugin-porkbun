@@ -29,8 +29,9 @@ Porkbun saying an edit worked is not the same as the record being changed, so th
   address inside the house, from a static override in the forwarding resolver), set `Resolver` on the record to a public server:
   `mailhost.Resolver = porkbunconfig.ResolverCloudflare` (1.1.1.1) or `ResolverGoogle` (8.8.8.8), or any `host` or `host:port`.
   `PluginConfig.Resolver` sets one for every record that has none of its own. A public server caches too, so the same TTL and grace apply.
-- **On the page** a record that resolves to its value has a green tick and "as of" the time it was last checked. One that does not has a
-  red cross and the time, and on the next line what it resolves to. Hovering over it says which server it was looked up through.
+- **On the page** the record's value has, on the same line, a green tick and "as of" the time it was last checked, if it resolves to the
+  value. If it does not, a red cross and the time are there, and a line below says what it resolves to. There is no other line about it
+  when it checks out. Hovering over the value says which server it was looked up through.
 - **One alert per record** is raised, as a warning, from the source `porkbun` with the key `domain/type/name`. It says what is wrong,
   and clears when nothing is.
 - **Check and update now**, the button at the top of the page, checks every record again, and sends the value last asked for again

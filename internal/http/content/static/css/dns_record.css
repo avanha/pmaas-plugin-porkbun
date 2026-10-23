@@ -74,7 +74,14 @@
     color: #b02a24;
 }
 
-.entity-dns-record .record-resolved .timestamp {
+.entity-dns-record .record-value-line {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: baseline;
+    gap: 0 10px;
+}
+
+.entity-dns-record .record-value-line .resolve-time {
     white-space: nowrap;
 }
 

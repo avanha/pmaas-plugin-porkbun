@@ -3,34 +3,29 @@
     {{if eq .Value ""}}
         <div class="record-value monospace unknown">Waiting for update</div>
     {{else}}
-        <div class="record-value monospace">{{.Value | html}}</div>
+        <div class="record-value-line" {{if .ResolveSupported}}title="Looked up through {{if eq .Resolver ""}}this machine's resolver{{else}}{{.Resolver | html}}{{end}}"{{end}}>
+            <span class="record-value monospace">{{.Value | html}}</span>
+            {{if and .ResolveSupported .ResolveChecked}}
+                {{if .ResolveMatches}}
+                    <span class="resolve-mark resolve-ok" role="img" aria-label="resolves to the record's value">&#10003;</span>
+                {{else}}
+                    <span class="resolve-mark resolve-bad" role="img" aria-label="does not resolve to the record's value">&#10007;</span>
+                {{end}}
+                <span class="timestamp resolve-time">as of {{.ResolveTime.Format "3:04:05 PM"}}</span>
+            {{end}}
+        </div>
     {{end}}
     {{if ne .Problem ""}}
         <div class="record-problem">{{.Problem | html}}</div>
     {{end}}
-    {{if .ResolveSupported}}
-        <div class="record-resolved container" title="Looked up through {{if eq .Resolver ""}}this machine's resolver{{else}}{{.Resolver | html}}{{end}}">
-            <div class="label">Resolves</div>
-            {{if not .ResolveChecked}}
-                <div class="value">Not checked yet{{if ne .ResolveError ""}}: {{.ResolveError | html}}{{end}}</div>
-            {{else}}
-                {{if .ResolveMatches}}
-                    <div class="resolve-mark resolve-ok" role="img" aria-label="resolves to the record's value">&#10003;</div>
-                {{else}}
-                    <div class="resolve-mark resolve-bad" role="img" aria-label="does not resolve to the record's value">&#10007;</div>
-                {{end}}
-                <div class="timestamp">as of {{.ResolveTime.Format "3:04:05 PM"}}</div>
-            {{end}}
+    {{if and .ResolveSupported .ResolveChecked (not .ResolveMatches)}}
+        <div class="record-resolved-to container">
+            <div class="label">Resolves to</div>
+            <div class="value monospace resolved-different">{{range $i, $v := .ResolvedValues}}{{if $i}}, {{end}}{{$v | html}}{{else}}nothing{{end}}</div>
         </div>
-        {{if and .ResolveChecked (not .ResolveMatches)}}
-            <div class="record-resolved-to container">
-                <div class="label">Resolves to</div>
-                <div class="value monospace resolved-different">{{range $i, $v := .ResolvedValues}}{{if $i}}, {{end}}{{$v | html}}{{else}}nothing{{end}}</div>
-            </div>
-        {{end}}
-        {{if and .ResolveChecked (ne .ResolveError "")}}
-            <div class="record-problem">The last lookup failed: {{.ResolveError | html}}</div>
-        {{end}}
+    {{end}}
+    {{if and .ResolveSupported (ne .ResolveError "")}}
+        <div class="record-problem">{{if .ResolveChecked}}The last lookup failed{{else}}Not looked up yet, the lookup failed{{end}}: {{.ResolveError | html}}</div>
     {{end}}
     {{if not .LastUpdateTime.IsZero}}
     <div class="dns-record-attributes container">
